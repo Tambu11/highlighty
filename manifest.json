@@ -5,8 +5,8 @@
   "description": "Highlight text with a draggable, rotatable, paginated colour toolbar.",
   "permissions": ["storage", "contextMenus", "activeTab"],
   "background": {
-  "service_worker": "background.js",
-  "scripts": ["background.js"]
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
   },
   "content_scripts": [
     {
@@ -27,6 +27,15 @@
     "highlight-selection": {
       "suggested_key": { "default": "Alt+Shift+H" },
       "description": "Highlight the selected text"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "highlighty@tambu11.github.io",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   }
 }
