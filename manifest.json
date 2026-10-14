@@ -5,8 +5,9 @@
   "description": "Highlight text with a draggable, rotatable, paginated colour toolbar.",
   "permissions": ["storage", "contextMenus", "activeTab"],
   "background": {
-    "service_worker": "background.js"
-  },
+  "service_worker": "background.js",
+  "scripts": ["background.js"]
+  }
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*", "file:///*"],
