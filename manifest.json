@@ -3,6 +3,11 @@
   "name": "Highlighty",
   "version": "1.0.0",
   "description": "Highlight text with a draggable, rotatable, paginated colour toolbar.",
+  "icons": {
+    "32": "icon-32.png",
+    "64": "icon-64.png",
+    "128": "icon-128.png"
+  },
   "permissions": ["storage", "contextMenus", "activeTab"],
   "background": {
     "service_worker": "background.js",
@@ -17,7 +22,11 @@
     }
   ],
   "action": {
-    "default_title": "Highlighty — show toolbar"
+    "default_title": "Highlighty — show toolbar",
+    "default_icon": {
+      "32": "icon-32.png",
+      "64": "icon-64.png"
+    }
   },
   "options_ui": {
     "page": "options.html",
