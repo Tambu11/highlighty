@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Highlighty",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Highlight text with a draggable, rotatable, paginated colour toolbar.",
   "icons": {
     "32": "icon-32.png",
