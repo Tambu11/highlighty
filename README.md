@@ -1,5 +1,5 @@
 # Highlighty
-<img width="770" height="716" alt="firefox_wur6Yf93Wm" src="https://github.com/user-attachments/assets/ce024ac8-2599-4f54-b6fc-ba2b4a5cecd3" />
+<img width="370" height="350" alt="demo" src="https://github.com/user-attachments/assets/0d7847aa-3dd6-4dfe-888e-98d708b5ea9d" />
 
 A lightweight browser extension for highlighting text on web pages, with a draggable, customisable toolbar.
 
