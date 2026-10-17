@@ -68,6 +68,8 @@ Open the extension's settings page from the gear icon on the toolbar, or via `ch
 ## Known limitations
 
 - **Triple-click paragraph selections** are intentionally skipped, to work around a Chromium DOM bug that can corrupt page layout.
+
+  > **Workaround:** Triple-click the paragraph *first*, then select a color from the toolbar.
 - **Contenteditable editors** (Google Docs, Notion, Gmail compose, etc.) are not supported — they manage their own DOM and ranges in ways the extension can't safely hook into.
 - **Iframes and Shadow DOM** are not covered; only the top-level document is processed.
 - **PDF files** are not supported. The built-in PDF viewer runs in an isolated context extensions cannot reach.
