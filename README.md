@@ -24,21 +24,20 @@ Built for students and anyone else who reads a lot online and wants to mark thin
 
 ## Installation
 
-### Chrome, Brave, Edge
+### Firefox
+[![Get the Add-on](https://img.shields.io/badge/Firefox-Get_the_Add--on-orange?logo=firefox)](https://addons.mozilla.org/firefox/addon/highlighty/)
 
+Install Highlighty directly from the official Mozilla Add-ons store. It updates automatically and doesn't require Developer Mode.
+
+*(Manual installation from the source code is no longer necessary for Firefox.)*
+
+### Chrome, Brave, Edge (Manual Installation)
+The extension is not yet published on the Chrome Web Store. To install it manually:
 1. Click the green **Code** button above and choose **Download ZIP**.
 2. Extract the ZIP.
 3. Open `chrome://extensions` (or `brave://extensions`, `edge://extensions`).
 4. Enable **Developer mode** (top right).
 5. Click **Load unpacked** and select the extracted folder.
-
-### Firefox
-
-1. Download and extract the ZIP as above.
-2. Open `about:debugging#/runtime/this-firefox`.
-3. Click **Load Temporary Add-on…** and select `manifest.json`.
-
-Note: Firefox treats extensions loaded this way as temporary, so they're removed when the browser closes. Store publication is planned.
 
 ## How to use
 
