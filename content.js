@@ -30,7 +30,8 @@
       middleClick: false,
       rightClick: false
     },
-    scrollInvert: false
+    scrollInvert: false,
+    wordSnapping: true
   };
 
   const PASTELS = [
@@ -119,15 +120,6 @@
     return null;
   }
 
-  /**
-   * After a mark is in the DOM, check whether the page's text colour is
-   * readable against the mark's background. If not, force black or white
-   * depending on the background's luminance.
-   *
-   * Uses the rendered colours of the page rather than OS theme detection,
-   * so it works on dark sites without a prefers-color-scheme declaration,
-   * and inside browsers that force-dark via CSS (e.g. Brave).
-   */
   function adjustMarkTextColor(mark) {
     if (!mark.parentNode) return;
     try {
@@ -145,11 +137,6 @@
       const ratio = (L1 + 0.05) / (L2 + 0.05);
 
       if (ratio < 4.5) {
-        // Descendants with their own opaque background (e.g. <code>, <pre>)
-        // paint over the mark's background. Their text sits on their own
-        // colour, not ours, so forcing the contrast colour onto them would
-        // make them unreadable. Snapshot their natural colour now, then
-        // restore it after the mark's colour override propagates.
         const protectedEls = [];
         for (const el of mark.querySelectorAll('*')) {
           const els = getComputedStyle(el);
@@ -225,7 +212,8 @@
         ? loaded.perLine
         : DEFAULT_SETTINGS.perLine,
       deselect: Object.assign({}, DEFAULT_SETTINGS.deselect, loaded.deselect || {}),
-      scrollInvert: !!loaded.scrollInvert
+      scrollInvert: !!loaded.scrollInvert,
+      wordSnapping: loaded.wordSnapping !== undefined ? !!loaded.wordSnapping : true
     };
   }
 
@@ -329,8 +317,6 @@
     if (!parent) return;
     while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
     parent.removeChild(mark);
-    // normalize() merges adjacent text nodes and drops empty ones.
-    // Safe here because all range work for this operation is done.
     try { parent.normalize(); } catch {}
   }
 
@@ -380,10 +366,16 @@
         idx = full.indexOf(text, idx + 1);
       }
 
+      const endOffset = startOffset + text.length;
+      const prefix = full.slice(Math.max(0, startOffset - 30), startOffset);
+      const suffix = full.slice(endOffset, Math.min(full.length, endOffset + 30));
+
       records.push({
         id: mark.dataset.hlId,
         text,
         occurrence,
+        prefix,
+        suffix,
         color: getMarkColor(mark),
         createdAt: Date.now()
       });
@@ -467,12 +459,6 @@
     return null;
   }
 
-  /**
-   * Unwrap any mark whose visible content is entirely whitespace.
-   * Runs after absorbWhitespaceMarks and mergeAdjacentMarks have had
-   * their chance — anything still whitespace-only is an orphan that
-   * would render as a stray highlight and shouldn't be kept.
-   */
   function removeWhitespaceMarks() {
     const marks = Array.from(document.querySelectorAll('mark.' + HL_CLASS));
     for (const mark of marks) {
@@ -483,6 +469,41 @@
   }
 
   /* ===================== restore ===================== */
+
+  function findBestOccurrence(fullText, record) {
+    const { text, occurrence, prefix, suffix } = record;
+    if (!text) return -1;
+
+    let bestIdx = -1;
+    let bestScore = -1;
+    let idx = fullText.indexOf(text);
+    let currentOcc = 0;
+
+    while (idx !== -1) {
+      let score = 0;
+      if (prefix) {
+        const actualPrefix = fullText.slice(Math.max(0, idx - prefix.length), idx);
+        if (actualPrefix.endsWith(prefix)) score += 2;
+        else if (actualPrefix.endsWith(prefix.slice(-10))) score += 1;
+      }
+      if (suffix) {
+        const actualSuffix = fullText.slice(idx + text.length, idx + text.length + suffix.length);
+        if (actualSuffix.startsWith(suffix)) score += 2;
+        else if (actualSuffix.startsWith(suffix.slice(0, 10))) score += 1;
+      }
+
+      if (score > bestScore || (score === bestScore && currentOcc === occurrence)) {
+        bestScore = score;
+        bestIdx = idx;
+      }
+
+      currentOcc++;
+      idx = fullText.indexOf(text, idx + 1);
+    }
+
+    if (bestScore > 0) return bestIdx;
+    return findOccurrence(fullText, text, occurrence || 0);
+  }
 
   async function restore() {
     const records = await loadRecords();
@@ -502,10 +523,15 @@
     const { text, spans } = buildIndex(collectTextNodes(document.body));
     if (!text) return;
 
+    const usedIndices = new Set();
     const jobs = [];
     for (const record of remaining) {
-      const idx = findOccurrence(text, record.text, record.occurrence || 0);
+      const idx = findBestOccurrence(text, record);
       if (idx === -1) continue;
+      
+      if (usedIndices.has(idx)) continue;
+      usedIndices.add(idx);
+      
       const range = rangeFromOffsets(spans, idx, idx + record.text.length);
       if (range) jobs.push({ idx, range, record });
     }
@@ -547,9 +573,6 @@
     return null;
   }
 
-  // Resolve a Range start point to a concrete text node + offset inside it.
-  // Triple-click paragraph selections yield element containers, whose
-  // offsets are child indices rather than character indices.
   function resolveStartPoint(container, offset) {
     if (container.nodeType === Node.TEXT_NODE) {
       return { node: container, offset };
@@ -629,17 +652,6 @@
     return bg && bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)';
   }
 
-  /**
-   * Given a selection [selStart, selEnd] in flattened-text offsets, return
-   * one sub-range per block that the selection intersects. Each sub-range
-   * is in the same flattened-text coordinate system, so the existing
-   * helpers (selectionRangeFromOffsets, splitMarkBySelection, …) consume
-   * them unchanged.
-   *
-   * Whitespace-only ranges are skipped: a <mark> containing just spaces
-   * between block elements (e.g. between two <li>s) is invalid markup
-   * and gets rendered as a line box, adding vertical space.
-   */
   function computeRanges(selStart, selEnd) {
     const { text, spans } = buildIndex(collectTextNodes(document.body));
     const ranges = [];
@@ -649,8 +661,6 @@
     );
     if (!selSpans.length) return ranges;
 
-    // If the whole selection sits inside a single code block, the user is
-    // deliberately targeting the code. Don't exclude it in that case.
     const firstCode = closestCodeAncestor(selSpans[0].node);
     const lastCode = closestCodeAncestor(
       selSpans[selSpans.length - 1].node
@@ -668,10 +678,6 @@
     };
 
     for (const span of selSpans) {
-      // Skip text nodes inside a code-like element with its own background,
-      // unless the whole selection is inside one code block. This keeps
-      // the code's own background and text color intact — the code simply
-      // isn't part of the highlight.
       if (!selectionInsideOneCode) {
         const code = closestCodeAncestor(span.node);
         if (code && codeHasOwnBackground(code)) {
@@ -704,7 +710,6 @@
     const startIn = markRange.isPointInRange(selRange.startContainer, selRange.startOffset);
     const endIn = markRange.isPointInRange(selRange.endContainer, selRange.endOffset);
 
-    // Whole mark inside the selection → just unwrap.
     if (!startIn && !endIn) {
       unwrapMark(mark);
       return { leftMark: null, rightMark: null };
@@ -728,7 +733,6 @@
       return { leftMark: null, rightMark: null };
     }
 
-    // Extract right first — that keeps the left offsets valid.
     let rightFrag = null;
     if (rightRange && !rightRange.collapsed) {
       try { rightFrag = rightRange.extractContents(); } catch { rightFrag = null; }
@@ -749,7 +753,6 @@
       parent.insertBefore(leftMark, mark);
     }
 
-    // Unwrap the middle — the original mark contains only the intersection.
     while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
     parent.removeChild(mark);
 
@@ -762,13 +765,31 @@
 
     try { parent.normalize(); } catch {}
 
-    // The slices were just recreated; their contrast colour needs to be
-    // reapplied. Without this, a slice in dark mode reverts to white text
-    // until a page reload re-runs adjustMarkTextColor via wrapRange.
     if (leftMark) adjustMarkTextColor(leftMark);
     if (rightMark) adjustMarkTextColor(rightMark);
 
     return { leftMark, rightMark };
+  }
+
+  function snapToWordBounds(fullText, start, end) {
+    const isWordChar = (ch) => ch && /[\p{L}\p{N}_]/u.test(ch);
+
+    let newStart = start;
+    let newEnd = end;
+
+    if (newStart > 0 && newStart < fullText.length && isWordChar(fullText[newStart])) {
+      while (newStart > 0 && isWordChar(fullText[newStart - 1])) {
+        newStart--;
+      }
+    }
+
+    if (newEnd > 0 && newEnd < fullText.length && isWordChar(fullText[newEnd - 1])) {
+      while (newEnd < fullText.length && isWordChar(fullText[newEnd])) {
+        newEnd++;
+      }
+    }
+
+    return [newStart, newEnd];
   }
 
   async function highlightSelection(color) {
@@ -777,17 +798,16 @@
     const info = getSelectionInfo();
     if (!info) return { ok: false, reason: 'no-selection' };
 
-    const { startOffset, endOffset } = info;
+    let { startOffset, endOffset } = info;
 
-    // Split the selection into per-block sub-ranges. A cross-block
-    // selection wrapped as a single <mark> would clone partial block
-    // elements (e.g. <p>) inside the mark, which the browser renders as
-    // broken layout. By contrast, each per-block sub-range stays inside
-    // one block and wraps cleanly.
+    if (settings.wordSnapping) {
+      const { text: fullText } = buildIndex(collectTextNodes(document.body));
+      [startOffset, endOffset] = snapToWordBounds(fullText, startOffset, endOffset);
+    }
+
     const ranges = computeRanges(startOffset, endOffset);
     if (!ranges.length) return { ok: false, reason: 'no-ranges' };
 
-    // Eraser: bail out if nothing in the selection is highlighted.
     if (color === ERASER) {
       let anyIntersecting = false;
       for (const r of ranges) {
@@ -802,7 +822,6 @@
     }
 
     for (const r of ranges) {
-      // Split any existing marks intersecting this sub-range.
       let selRange = selectionRangeFromOffsets(r.start, r.end);
       if (!selRange) continue;
       const intersecting = findIntersectingMarks(selRange);
@@ -819,7 +838,6 @@
 
       if (color === ERASER) continue;
 
-      // Wrap this sub-range in its own new mark.
       selRange = selectionRangeFromOffsets(r.start, r.end);
       if (!selRange || selRange.collapsed) continue;
 
@@ -836,10 +854,6 @@
         const frag = selRange.extractContents();
         newMark.appendChild(frag);
 
-        // Insert manually rather than via Range.insertNode. Chromium's
-        // insertNode can leave the document's internal range bookkeeping
-        // corrupted, which shows up later as broken text layout on
-        // subsequent selections.
         const sc = selRange.startContainer;
         const so = selRange.startOffset;
         if (sc.nodeType === Node.TEXT_NODE) {
@@ -866,7 +880,6 @@
       if (wrapped) adjustMarkTextColor(newMark);
     }
 
-    // Compact before saving.
     absorbWhitespaceMarks();
     mergeAdjacentMarks();
     removeWhitespaceMarks();
@@ -895,7 +908,7 @@
   document.addEventListener('mouseup', (event) => {
     if (!activeColor) return;
     if (isDragging) return;
-    if (event.detail >= 3) return; // triple-click paragraph selections
+    if (event.detail >= 3) return;
 
     if (toolbarHost && typeof event.composedPath === 'function') {
       if (event.composedPath().includes(toolbarHost)) return;
@@ -911,9 +924,6 @@
 
   /* ===================== wheel guard during drags ===================== */
 
-  // Any wheel event that fires while a drag is in progress is suppressed,
-  // regardless of what element it lands on. This is the belt-and-braces
-  // counterpart to the `isDragging` guard inside onWheel.
   window.addEventListener('wheel', (e) => {
     if (!isDragging) return;
     e.preventDefault();
@@ -1012,7 +1022,7 @@
       outline-offset: 2px;
     }
 
-    .handle, .rotate, .close {
+    .handle, .rotate, .settings, .close {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1028,7 +1038,7 @@
     }
     .handle { cursor: grab; }
     .handle:active { cursor: grabbing; }
-    .handle:hover, .rotate:hover, .close:hover {
+    .handle:hover, .rotate:hover, .settings:hover, .close:hover {
       background: rgba(0,0,0,0.06);
       color: #222;
     }
@@ -1113,7 +1123,7 @@
         border-color: rgba(255,255,255,0.15);
         box-shadow: 0 6px 24px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
       }
-      .handle:hover, .rotate:hover, .close:hover {
+      .handle:hover, .rotate:hover, .settings:hover, .close:hover {
         background: rgba(255,255,255,0.10);
         color: #fff;
       }
@@ -1176,10 +1186,11 @@
         </svg>
       </button>
       <div class="viewport"><div class="strip"></div></div>
-      <button class="add" type="button" title="Add colour" aria-label="Add colour">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
-             stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
-          <path d="M12 5 V19 M5 12 H19"/>
+      <button class="settings" type="button" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
       </button>
       <button class="close" type="button" title="Close toolbar" aria-label="Close toolbar">
@@ -1237,19 +1248,9 @@
       hideToolbar();
     });
 
-    bar.querySelector('.add').addEventListener('click', (e) => {
+    bar.querySelector('.settings').addEventListener('click', (e) => {
       e.stopPropagation();
-      if (picker && picker.isOpen()) {
-        picker.close();
-      } else if (picker) {
-        picker.open(pickNextPastel(), async (color) => {
-          settings.colors.push(color);
-          await saveSettings();
-          toolbarState.lineIndex = lastLine();
-          await saveToolbarState();
-          renderStrip();
-        }, 'Add colour');
-      }
+      api.runtime.sendMessage({ type: 'open-options' });
     });
 
     const handle = bar.querySelector('.handle');
@@ -1273,7 +1274,8 @@
   /* ===================== pagination ===================== */
 
   function lastLine() {
-    return Math.max(0, Math.ceil(settings.colors.length / settings.perLine) - 1);
+    const totalItems = settings.colors.length + 1; // +1 per il pulsante "+"
+    return Math.max(0, Math.ceil(totalItems / settings.perLine) - 1);
   }
 
   function pickDelta(e) {
@@ -1287,9 +1289,6 @@
 
   function onWheel(e) {
     if (e.ctrlKey) return;
-    // A trackpad gesture can fire wheel events while the user is dragging
-    // the resize edge or the move handle. Ignore them so the drag doesn't
-    // also page through the swatches.
     if (isDragging) return;
     let delta = pickDelta(e);
     if (!delta) return;
@@ -1335,15 +1334,40 @@
     if (!stripEl) return;
     stripEl.innerHTML = '';
 
-    const lines = Math.max(1, Math.ceil(settings.colors.length / settings.perLine));
+    const totalItems = settings.colors.length + 1;
+    const lines = Math.max(1, Math.ceil(totalItems / settings.perLine));
     const totalSlots = lines * settings.perLine;
 
     for (let i = 0; i < totalSlots; i++) {
       const slot = document.createElement('div');
       slot.className = 'slot';
 
-      const color = settings.colors[i];
-      if (color) {
+      if (i === settings.colors.length) {
+        // Siamo alla fine dei colori: aggiungiamo il pulsante "+"
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'add';
+        addBtn.title = 'Add colour';
+        addBtn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5 V19 M5 12 H19"/></svg>`;
+        
+        addBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (picker && picker.isOpen()) {
+            picker.close();
+          } else if (picker) {
+            picker.open(pickNextPastel(), async (color) => {
+              settings.colors.push(color);
+              await saveSettings();
+              toolbarState.lineIndex = lastLine();
+              await saveToolbarState();
+              renderStrip();
+            }, 'Add colour');
+          }
+        });
+        
+        slot.appendChild(addBtn);
+      } else if (i < settings.colors.length) {
+        const color = settings.colors[i];
         const isEraser = color === ERASER;
         const sw = document.createElement('button');
         sw.type = 'button';
@@ -1601,9 +1625,6 @@
 
       settings.perLine = next;
       barEl.style.setProperty('--per-line', String(next));
-      // Don't call updateScroll here — the strip stays at its current
-      // transform during the drag, so the visible swatches don't jump
-      // around as the viewport widens/narrows. We snap on release.
 
       const r = toolbarHost.getBoundingClientRect();
       setHostPosition(toolbarHost, r.left, r.top);
@@ -1616,8 +1637,6 @@
 
       barEl.style.cursor = '';
 
-      // Snap the strip to the nearest line boundary at the new perLine,
-      // keeping the visible content roughly in place.
       const pixelOffset = toolbarState.lineIndex * startPerLine * SLOT;
       toolbarState.lineIndex = Math.min(
         Math.round(pixelOffset / (settings.perLine * SLOT)),
@@ -1780,7 +1799,8 @@
         ? loaded.perLine
         : DEFAULT_SETTINGS.perLine,
       deselect: Object.assign({}, DEFAULT_SETTINGS.deselect, loaded.deselect || {}),
-      scrollInvert: !!loaded.scrollInvert
+      scrollInvert: !!loaded.scrollInvert,
+      wordSnapping: loaded.wordSnapping !== undefined ? !!loaded.wordSnapping : true
     };
 
     if (barEl) {

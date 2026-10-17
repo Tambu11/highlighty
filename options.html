@@ -216,6 +216,17 @@
 <body>
   <h1>Highlighty</h1>
 
+  <h2>Word snapping</h2>
+  <p class="hint">When you select part of a word, automatically expand the selection to cover the entire word.</p>
+
+  <label class="checkbox">
+    <input type="checkbox" id="wordSnapping">
+    <span>
+      <strong>Snap to whole words</strong>
+      <small>Prevents partial words from being highlighted when your mouse slips.</small>
+    </span>
+  </label>
+
   <h2>Colours per line</h2>
   <p class="hint">How many swatches fit on the toolbar at once. Scroll the wheel over the toolbar to page through the rest.</p>
   <div class="segmented" id="perLine" role="group" aria-label="Colours per line">
@@ -275,9 +286,14 @@
 
   <h2>Support this project</h2>
   <p class="hint">Highlighty is free and always will be. If it's useful to you and you'd like to say thanks, you can buy me a coffee.</p>
-  <a href="https://ko-fi.com/tambu11" target="_blank" rel="noopener" class="support-link">
-    ♥ Buy me a coffee
-  </a>
+  <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+    <a href="https://ko-fi.com/tambu11" target="_blank" rel="noopener" class="support-link">
+      ♥ Buy me a coffee
+    </a>
+    <a href="https://forms.fillout.com/t/oFz2ehaPrnus" target="_blank" rel="noopener" class="support-link">
+      Send feedback
+    </a>
+  </div>
 
   <script src="picker.js"></script>
   <script src="options.js"></script>

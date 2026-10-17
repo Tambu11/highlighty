@@ -72,3 +72,11 @@ if (api.commands && api.commands.onCommand) {
     }
   });
 }
+
+api.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message && message.type === 'open-options') {
+    api.runtime.openOptionsPage();
+    sendResponse({ ok: true });
+  }
+  return true;
+});

@@ -23,7 +23,8 @@ const DEFAULT_SETTINGS = {
     middleClick: false,
     rightClick: false
   },
-  scrollInvert: false
+  scrollInvert: false,
+  wordSnapping: true
 };
 
 let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
@@ -46,6 +47,7 @@ async function load() {
     : DEFAULT_SETTINGS.perLine;
   settings.deselect = Object.assign({}, DEFAULT_SETTINGS.deselect, loaded.deselect || {});
   settings.scrollInvert = !!loaded.scrollInvert;
+  settings.wordSnapping = loaded.wordSnapping !== undefined ? !!loaded.wordSnapping : true;
 }
 
 async function save() {
@@ -254,12 +256,14 @@ const deselectEscapeEl = document.getElementById('deselectEscape');
 const deselectMiddleEl = document.getElementById('deselectMiddle');
 const deselectRightEl = document.getElementById('deselectRight');
 const scrollInvertEl = document.getElementById('scrollInvert');
+const wordSnappingEl = document.getElementById('wordSnapping');
 
 function renderDeselect() {
   deselectEscapeEl.checked = !!settings.deselect.escape;
   deselectMiddleEl.checked = !!settings.deselect.middleClick;
   deselectRightEl.checked = !!settings.deselect.rightClick;
   scrollInvertEl.checked = !!settings.scrollInvert;
+  wordSnappingEl.checked = !!settings.wordSnapping;
 }
 
 deselectEscapeEl.addEventListener('change', async () => {
@@ -276,6 +280,10 @@ deselectRightEl.addEventListener('change', async () => {
 });
 scrollInvertEl.addEventListener('change', async () => {
   settings.scrollInvert = scrollInvertEl.checked;
+  await save();
+});
+wordSnappingEl.addEventListener('change', async () => {
+  settings.wordSnapping = wordSnappingEl.checked;
   await save();
 });
 
