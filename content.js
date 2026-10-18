@@ -1701,11 +1701,9 @@
   function findSwatchUnder(x, y, excludeIndex) {
     if (!stripEl) return null;
 
-    // Off-page swatches are only clipped, not removed: ignore anything
-    // outside the visible viewport.
-    const vp = stripEl.parentElement.getBoundingClientRect();
-    if (x < vp.left || x >= vp.right || y < vp.top || y >= vp.bottom) return null;
-
+    // We check ALL swatches, even if they are currently hidden (clipped)
+    // by the viewport. This allows the user to drag a colour past the edge
+    // and drop it into a hidden row.
     const swatches = stripEl.querySelectorAll('.swatch');
     for (const sw of swatches) {
       const idx = Number(sw.dataset.index);

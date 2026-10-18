@@ -124,11 +124,12 @@ function renderGrid() {
     const isEraser = color === ERASER;
     const cell = document.createElement('div');
     cell.className = 'cell';
-    cell.draggable = true;
+    // 1. Rimosso cell.draggable = true;
     cell.dataset.index = String(i);
 
     const sw = document.createElement('div');
     sw.className = 'swatch';
+    sw.draggable = true; // 2. AGGIUNTO QUI: il drag parte dal cerchio colorato
 
     if (isEraser) {
       sw.classList.add('swatch-eraser');
@@ -141,7 +142,6 @@ function renderGrid() {
       sw.addEventListener('click', (e) => {
         e.preventDefault();
         picker.open(color, async (newColor) => {
-          // Prefer the swatch's own index so duplicate colours edit the right one.
           const liveIndex = settings.colors[i] === color
             ? i
             : settings.colors.indexOf(color);
@@ -174,18 +174,21 @@ function renderGrid() {
       cell.appendChild(rm);
     }
 
-    cell.addEventListener('dragstart', (e) => {
+    // 3. Spostati i listener dragstart e dragend su `sw`
+    sw.addEventListener('dragstart', (e) => {
       dragPayload = { type: 'reorder', index: i };
       e.dataTransfer.setData('text/plain', String(i));
       e.dataTransfer.effectAllowed = 'move';
       cell.classList.add('dragging');
     });
-    cell.addEventListener('dragend', () => {
+    
+    sw.addEventListener('dragend', () => {
       dragPayload = null;
       cell.classList.remove('dragging');
       clearOver();
     });
 
+    // 4. I listener per il drop rimangono su `cell`
     cell.addEventListener('dragover', (e) => {
       if (!dragPayload || dragPayload.type !== 'reorder') return;
       e.preventDefault();
@@ -193,9 +196,11 @@ function renderGrid() {
       clearOver();
       cell.classList.add('over');
     });
+    
     cell.addEventListener('dragleave', (e) => {
       if (!cell.contains(e.relatedTarget)) cell.classList.remove('over');
     });
+    
     cell.addEventListener('drop', async (e) => {
       if (!dragPayload || dragPayload.type !== 'reorder') return;
       e.preventDefault();
