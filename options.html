@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Highlighty Settings</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root { color-scheme: light dark; }
+  html, body { overflow-x: hidden; }
+  body {
+    max-width: 520px;
+    margin: 24px auto;
+    padding: 0 20px 40px;
+    font: 14px/1.5 system-ui, -apple-system, sans-serif;
+  }
+  h1 { font-size: 18px; margin: 0 0 20px; }
+  h2 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    opacity: .7;
+    margin: 28px 0 8px;
+    font-weight: 600;
+  }
+  .hint { color: #666; font-size: 13px; margin: 0 0 12px; }
+
+  .segmented {
+    display: inline-flex;
+    border: 1px solid rgba(128,128,128,.4);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .segmented button {
+    border: none;
+    background: transparent;
+    color: inherit;
+    padding: 6px 16px;
+    cursor: pointer;
+    font: inherit;
+    border-right: 1px solid rgba(128,128,128,.4);
+  }
+  .segmented button:last-child { border-right: none; }
+  .segmented button[aria-pressed="true"] {
+    background: rgba(128,128,128,.2);
+    font-weight: 600;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .cell {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .swatch {
+    width: 80%;
+    height: 80%;
+    max-width: 32px;
+    max-height: 32px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.15);
+    transition: transform .08s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .swatch:hover { transform: scale(1.06); }
+  .cell, .swatch, .default-swatch { user-select: none; -moz-user-select: none; }
+  .swatch:focus-visible, .default-swatch:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+  .swatch-eraser {
+    background-color: #f0f0f0;
+    color: #555;
+  }
+  .swatch-eraser:hover { background-color: #e5e5e5; }
+  .swatch-eraser svg { width: 55%; height: 55%; display: block; }
+  .cell.dragging { opacity: .35; }
+  .cell.over {
+    outline: 2px dashed rgba(128,128,128,.7);
+    outline-offset: 2px;
+    border-radius: 50%;
+  }
+  .remove {
+    position: absolute;
+    top: -2px; right: -2px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 1px solid rgba(128,128,128,.4);
+    background: #fff;
+    color: #666;
+    font-size: 11px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .cell:hover .remove { opacity: 1; }
+  .remove:hover { color: #d33; border-color: #d33; }
+
+  .add-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .add {
+    padding: 8px 14px;
+    border: 1px dashed rgba(128,128,128,.5);
+    background: transparent;
+    color: inherit;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+    flex-shrink: 0;
+  }
+  .add:hover { border-style: solid; }
+
+  .defaults {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 5px 8px;
+    border: 1px dashed rgba(128,128,128,.35);
+    border-radius: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .default-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    cursor: grab;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.15);
+    transition: transform .08s;
+    flex-shrink: 0;
+  }
+  .default-swatch:hover { transform: scale(1.15); }
+  .default-swatch:active { cursor: grabbing; }
+  .default-swatch.dragging { opacity: .35; }
+
+  .checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    border: 1px solid rgba(128,128,128,.25);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .checkbox:hover { border-color: rgba(128,128,128,.5); }
+  .checkbox input {
+    margin: 3px 0 0;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .checkbox span {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  .checkbox strong { font-weight: 600; }
+  .checkbox small {
+    opacity: .65;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .support-link {
+    display: inline-block;
+    padding: 10px 16px;
+    margin-top: 2px;
+    background: #f5f5f5;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 6px;
+    color: inherit;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .support-link:hover {
+    background: #ebebeb;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .hint { color: #aaa; }
+    .remove { background: #1e1e1e; }
+    .swatch-eraser { background-color: #3a3a3a; color: #bbb; }
+    .swatch-eraser:hover { background-color: #444; }
+
+    .support-link {
+      background: #3a3a3a;
+      border-color: rgba(255,255,255,0.15);
+    }
+    .support-link:hover {
+      background: #464646;
+    }
+  }
+</style>
+</head>
+<body>
+  <h1>Highlighty</h1>
+
+  <h2>Word snapping</h2>
+  <p class="hint">When you select part of a word, automatically expand the selection to cover the entire word.</p>
+
+  <label class="checkbox">
+    <input type="checkbox" id="wordSnapping">
+    <span>
+      <strong>Snap to whole words</strong>
+      <small>Prevents partial words from being highlighted when your mouse slips.</small>
+    </span>
+  </label>
+
+  <h2>Colours per line</h2>
+  <p class="hint">How many swatches fit on the toolbar at once. Scroll the wheel over the toolbar to page through the rest.</p>
+  <div class="segmented" id="perLine" role="group" aria-label="Colours per line">
+    <button type="button" data-value="3">3</button>
+    <button type="button" data-value="4">4</button>
+    <button type="button" data-value="5">5</button>
+  </div>
+
+  <h2>Colours</h2>
+  <p class="hint">Click a swatch to change its colour. Drag to reorder. Hover to remove. The eraser is fixed in the palette and cannot be deleted.</p>
+  <div class="grid" id="grid"></div>
+
+  <h2>Add colour</h2>
+  <p class="hint">Click <strong>+ Add</strong> to pick a custom colour, or drag one of the defaults into your palette above.</p>
+  <div class="add-row">
+    <button class="add" id="add" type="button">+ Add</button>
+    <div class="defaults" id="defaults" aria-label="Default colours"></div>
+  </div>
+
+  <h2>Exit highlight mode</h2>
+  <p class="hint">When a colour is active, these gestures turn it off. Escape is free; the mouse gestures trade away browser behaviour while the mode is on.</p>
+
+  <label class="checkbox">
+    <input type="checkbox" id="deselectEscape">
+    <span>
+      <strong>Escape key</strong>
+      <small>No side effects. Recommended.</small>
+    </span>
+  </label>
+
+  <label class="checkbox">
+    <input type="checkbox" id="deselectMiddle">
+    <span>
+      <strong>Middle mouse button</strong>
+      <small>Disables scroll-on-middle-click while a colour is active.</small>
+    </span>
+  </label>
+
+  <label class="checkbox">
+    <input type="checkbox" id="deselectRight">
+    <span>
+      <strong>Right-click</strong>
+      <small>Suppresses the browser's context menu while a colour is active.</small>
+    </span>
+  </label>
+
+  <h2>Scroll direction</h2>
+  <p class="hint">In the horizontal toolbar, whether scrolling down moves the swatches right or left.</p>
+
+  <label class="checkbox">
+    <input type="checkbox" id="scrollInvert">
+    <span>
+      <strong>Invert horizontal scroll</strong>
+      <small>Scroll down to move left; scroll up to move right.</small>
+    </span>
+  </label>
+
+  <h2>Support this project</h2>
+  <p class="hint">Highlighty is free and always will be. If it's useful to you and you'd like to say thanks, you can buy me a coffee.</p>
+  <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+    <a href="https://ko-fi.com/tambu11" target="_blank" rel="noopener" class="support-link">
+      ♥ Buy me a coffee
+    </a>
+    <a href="https://forms.fillout.com/t/oFz2ehaPrnus" target="_blank" rel="noopener" class="support-link">
+      Send feedback
+    </a>
+  </div>
+
+  <script src="picker.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

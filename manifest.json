@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "name": "Highlighty",
+  "version": "1.2.0",
+  "description": "Highlight text with a draggable, rotatable, paginated colour toolbar.",
+  "icons": {
+    "32": "icon-32.png",
+    "64": "icon-64.png",
+    "128": "icon-128.png"
+  },
+  "permissions": ["storage", "contextMenus"],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*", "file:///*"],
+      "js": ["picker.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Highlighty — show toolbar",
+    "default_icon": {
+      "32": "icon-32.png",
+      "64": "icon-64.png"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "commands": {
+    "highlight-selection": {
+      "suggested_key": { "default": "Alt+Shift+H" },
+      "description": "Highlight the selected text"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "highlighty@tambu11.github.io",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  }
+}

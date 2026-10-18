@@ -1,0 +1,9 @@
+mark.hl-ext-mark {
+  color: inherit !important;
+  background-color: #fff176 !important;
+  padding: 0 !important;
+  border-radius: 2px;
+  display: inline;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
