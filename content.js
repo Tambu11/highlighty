@@ -1631,6 +1631,8 @@
       let dragging = false;
       let ghost = null;
       let currentIndex = startIndex;
+      let lastX = startX;
+      let lastY = startY;
 
       const host = toolbarHost;
       try { host.setPointerCapture(pointerId); } catch {}
@@ -1667,17 +1669,24 @@
 
         ghost.style.left = ev.clientX + 'px';
         ghost.style.top = ev.clientY + 'px';
+        lastX = ev.clientX;
+        lastY = ev.clientY;
 
-        const target = findSwatchUnder(ev.clientX, ev.clientY, currentIndex);
-        if (target !== null && target !== currentIndex) {
-          const [moved] = settings.colors.splice(currentIndex, 1);
-          settings.colors.splice(target, 0, moved);
-          currentIndex = target;
-          renderStrip();
+        // Only reorder live while the pointer is over the visible grid. When
+        // the pointer leaves the viewport, the drop handler moves the swatch
+        // to the adjacent row and paginates to it.
+        if (isInsideViewport(ev.clientX, ev.clientY)) {
+          const target = findSwatchUnder(ev.clientX, ev.clientY, currentIndex);
+          if (target !== null && target !== currentIndex) {
+            const [moved] = settings.colors.splice(currentIndex, 1);
+            settings.colors.splice(target, 0, moved);
+            currentIndex = target;
+            renderStrip();
+          }
         }
       };
 
-      const onUp = async () => {
+      const onUp = async (ev) => {
         try { host.removeEventListener('pointermove', onMove); } catch {}
         try { host.removeEventListener('pointerup', onUp); } catch {}
         try { host.removeEventListener('pointercancel', onUp); } catch {}
@@ -1685,6 +1694,40 @@
         if (ghost) ghost.remove();
 
         if (dragging) {
+          // A pointerup (not pointercancel) outside the viewport means the
+          // user dropped the swatch beyond the current page: move it to the
+          // start of the next row (or the end of the previous one).
+          const wasCancel = ev && ev.type === 'pointercancel';
+          if (!wasCancel) {
+            const x = ev && typeof ev.clientX === 'number' ? ev.clientX : lastX;
+            const y = ev && typeof ev.clientY === 'number' ? ev.clientY : lastY;
+            const dir = getOutsideDirection(x, y);
+
+            if (dir !== 0) {
+              const adjacentLine = toolbarState.lineIndex + dir;
+              const maxLine = lastLine();
+
+              if (adjacentLine >= 0 && adjacentLine <= maxLine) {
+                const lineStart = adjacentLine * settings.perLine;
+                // Dropping right/down → start of next line.
+                // Dropping left/up  → end of previous line.
+                const raw = dir > 0
+                  ? lineStart
+                  : Math.min(lineStart + settings.perLine - 1,
+                             settings.colors.length - 1);
+                const target = Math.max(0, Math.min(raw, settings.colors.length - 1));
+
+                if (target !== currentIndex) {
+                  const [moved] = settings.colors.splice(currentIndex, 1);
+                  settings.colors.splice(target, 0, moved);
+                }
+
+                toolbarState.lineIndex = adjacentLine;
+                renderStrip();
+              }
+            }
+          }
+
           await saveSettings();
           setTimeout(() => setDragging(false), 0);
         } else {
@@ -1714,6 +1757,28 @@
       }
     }
     return null;
+  }
+
+  // Whether (x, y) is over the visible part of the swatch strip.
+  function isInsideViewport(x, y) {
+    if (!stripEl || !stripEl.parentElement) return false;
+    const vr = stripEl.parentElement.getBoundingClientRect();
+    return x >= vr.left && x < vr.right && y >= vr.top && y < vr.bottom;
+  }
+
+  // 0 = inside viewport, -1 = before it, +1 = after it.
+  // Only the primary axis matters (x for horizontal, y for vertical).
+  function getOutsideDirection(x, y) {
+    if (!stripEl || !stripEl.parentElement) return 0;
+    const vr = stripEl.parentElement.getBoundingClientRect();
+    if (toolbarState.orientation === 'vertical') {
+      if (y < vr.top) return -1;
+      if (y >= vr.bottom) return 1;
+    } else {
+      if (x < vr.left) return -1;
+      if (x >= vr.right) return 1;
+    }
+    return 0;
   }
 
   function onSwatchClick(color) {
