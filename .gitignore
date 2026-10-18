@@ -1,0 +1,52 @@
+# =========================
+# Operating System Files
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# =========================
+# Editor and IDE
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-workspace
+
+# =========================
+# Store Packages (Firefox, Chrome, Edge)
+# =========================
+# Ignore ZIPs and packages generated for store uploads
+*.zip
+*.crx
+*.xpi
+*.pem
+
+# =========================
+# Node.js and Build Tools (Future-proofing)
+# =========================
+# In case you add dependencies or build scripts later
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+dist/
+build/
+
+# =========================
+# Environment and Secrets
+# =========================
+.env
+.env.local
+.env.*.local
