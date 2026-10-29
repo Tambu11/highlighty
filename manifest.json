@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Highlighty",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Highlight text with a draggable, rotatable, paginated colour toolbar.",
   "icons": {
     "32": "icon-32.png",
@@ -30,7 +30,7 @@
   },
   "options_ui": {
     "page": "options.html",
-    "open_in_tab": false
+    "open_in_tab": true
   },
   "commands": {
     "highlight-selection": {
