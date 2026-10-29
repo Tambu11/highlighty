@@ -9,7 +9,7 @@ Built for students and anyone else who reads a lot online and wants to mark thin
 
 ## Features
 
-- **Click-to-arm highlighting** — pick a colour, then every text selection you make gets highlighted in it. Click the colour again (or press `Escape`) to exit.
+- **Click-to-arm highlighting** — pick a colour, then every text selection you make gets highlighted in it. Click the colour again (or press `Escape`) to exit. Middle-click and right-click can also be enabled in settings.
 - **Word snapping** — selections automatically expand to cover whole words, so you never accidentally highlight half a word. (Can be disabled in settings).
 - **Draggable, rotatable toolbar** — move it anywhere on the screen, and rotate it vertical if you prefer.
 - **Customisable palette** — reorder colours, delete the ones you don't want, add your own with a built-in colour picker.
@@ -28,9 +28,7 @@ Built for students and anyone else who reads a lot online and wants to mark thin
 ### Firefox
 [![Get the Add-on](https://img.shields.io/badge/Firefox-Get_the_Add--on-orange?logo=firefox)](https://addons.mozilla.org/firefox/addon/highlighty/)
 
-Install Highlighty directly from the official Mozilla Add-ons store. It updates automatically and doesn't require Developer Mode.
-
-*(Manual installation from the source code is no longer necessary for Firefox.)*
+Install Highlighty directly from the official Mozilla Add-ons store.
 
 ### Chrome, Brave, Edge (Manual Installation)
 The extension is not yet published on the Chrome Web Store. To install it manually:
@@ -96,4 +94,4 @@ Found a bug or have an idea for a feature? [Send feedback here](https://forms.fi
 
 ## License
 
-This project is licensed under the [PolyForm Shield License 1.0.0](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
